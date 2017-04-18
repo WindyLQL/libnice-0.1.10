@@ -70,6 +70,7 @@
 
 
 #include <glib.h>
+#include<stdio.h>
 
 G_BEGIN_DECLS
 
@@ -98,6 +99,36 @@ void nice_debug_enable (gboolean with_stun);
  * Disables libnice debug output to the terminal
  */
 void nice_debug_disable (gboolean with_stun);
+
+#define g_nice_log_file_path "/root/libnice_log.txt"
+extern FILE *g_nice_log_file_handle;
+void g_nice_log_init( FILE **file_handle);
+#define PRINT_LOG(format, ...) \
+        do {\
+            if(NULL == g_nice_log_file_handle)\
+            {\
+                g_nice_log_init(&g_nice_log_file_handle);\
+            }\
+            if (1)\
+                {\
+                char janus_log_ts[64] = ""; \
+                char janus_log_src[128] = ""; \
+                if (1) { \
+                    struct tm janustmresult; \
+                    time_t janusltime = time(NULL); \
+                    localtime_r(&janusltime, &janustmresult); \
+                    strftime(janus_log_ts, sizeof(janus_log_ts), \
+                             "[%a %b %e %T %Y] ", &janustmresult); \
+                } \
+                    snprintf(janus_log_src, sizeof(janus_log_src), \
+                              "[%s:%s:%d] ",__FILE__,__FUNCTION__,__LINE__); \
+                fprintf(g_nice_log_file_handle,"%s%s" format, \
+                    janus_log_ts, \
+                    janus_log_src, \
+##__VA_ARGS__); \
+                fflush(g_nice_log_file_handle);\
+}\
+        } while (0)
 
 G_END_DECLS
 

@@ -108,6 +108,13 @@ gboolean nice_debug_is_enabled (void)
 /* Defined in agent-priv.h. */
 #endif
 
+FILE *g_nice_log_file_handle = NULL;
+void g_nice_log_init( FILE **file_handle)
+{
+    *file_handle = fopen(g_nice_log_file_path,"awt");
+    return;
+}
+
 void nice_debug_enable (gboolean with_stun)
 {
   nice_debug_init ();

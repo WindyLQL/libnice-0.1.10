@@ -811,7 +811,7 @@ emit_io_callback_cb (gpointer user_data)
     io_callback = component->io_callback;
     io_user_data = component->io_user_data;
     data = g_queue_peek_head (&component->pending_io_messages);
-
+	PRINT_LOG("length:%d\n",g_queue_get_length(&component->pending_io_messages));
     if (data == NULL || io_callback == NULL)
       break;
 
@@ -844,6 +844,50 @@ emit_io_callback_cb (gpointer user_data)
 }
 
 /* This must be called with the agent lock *held*. */
+static gint64 janus_get_monotonic_time(void) {
+	struct timespec ts;
+	clock_gettime (CLOCK_MONOTONIC, &ts);
+	return (ts.tv_sec*G_GINT64_CONSTANT(1000000)) + (ts.tv_nsec/G_GINT64_CONSTANT(1000));
+}
+
+gint64 g_nice_time = 0;
+gint64 g_nice_total_num = 0;
+gint64 g_nice_ototal_num = 0;
+
+gpointer g_nice_condi = NULL;
+
+static void nice_record(gint64 *num,gint64 *onum,gint64 *_time,gpointer *nice_condi,gpointer component)
+{
+	if(!(*nice_condi))
+		*nice_condi = component;
+
+	if(*nice_condi == component)
+	{
+		*num=*num+1;		
+		if(*_time)
+		{
+			  gint64 temp_nice_time = janus_get_monotonic_time();
+			  if(*_time + 10000000 <= (temp_nice_time))
+			  {
+				  PRINT_LOG("packet [onum %lu:num %lu]/%lu|%p\n",*onum,*num,temp_nice_time - *_time,component);
+				  *_time = temp_nice_time;
+				  *num = 0;
+				  *onum = 0;
+			  }
+		}
+		else
+		{
+			*_time = janus_get_monotonic_time();
+		}
+	}
+	else
+	{
+		*onum = *onum +1;
+	}
+
+}
+
+
 void
 component_emit_io_callback (Component *component,
     const guint8 *buf, gsize buf_len)
@@ -852,14 +896,16 @@ component_emit_io_callback (Component *component,
   guint stream_id, component_id;
   NiceAgentRecvFunc io_callback;
   gpointer io_user_data;
-
   g_assert (component != NULL);
   g_assert (buf != NULL);
   g_assert (buf_len > 0);
 
+
   agent = component->agent;
   stream_id = component->stream->id;
   component_id = component->id;
+  
+  nice_record(&g_nice_ototal_num,&g_nice_total_num,&g_nice_time,&g_nice_condi,component);
 
   g_mutex_lock (&component->io_mutex);
   io_callback = component->io_callback;
